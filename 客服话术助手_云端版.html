@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客服话术助手</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f6fa;--white:#fff;--border:#e8eaf0;--border2:#d0d4e8;
+  --pre:#16a34a;--pre-light:#f0fdf4;--pre-dim:rgba(22,163,74,.1);--pre-border:#bbf7d0;
+  --after:#ea580c;--after-light:#fff7ed;--after-dim:rgba(234,88,12,.1);--after-border:#fed7aa;
+  --text:#1a1d2e;--text2:#4a5068;--text3:#9399b2;
+  --blue:#3b82f6;--blue-light:#eff6ff;
+  --red:#ef4444;--red-light:#fef2f2;
+  --shadow:0 1px 4px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.06);
+  --shadow2:0 2px 8px rgba(0,0,0,.12),0 8px 32px rgba(0,0,0,.08);
+}
+body{font-family:'Noto Sans SC',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh}
+
+/* LOADING SCREEN */
+.loading-screen{
+  position:fixed;inset:0;background:#fff;z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  transition:opacity .4s
+}
+.loading-screen.hide{opacity:0;pointer-events:none}
+.loading-logo{font-size:28px;font-weight:700;color:var(--text)}
+.loading-logo em{color:var(--pre);font-style:normal}
+.loading-bar{width:200px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.loading-bar-inner{height:100%;background:var(--pre);border-radius:2px;animation:loadpulse 1.2s ease-in-out infinite}
+@keyframes loadpulse{0%{width:0%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}
+.loading-txt{font-size:12px;color:var(--text3)}
+
+/* SYNC STATUS */
+.sync-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+  transition:background .3s
+}
+.sync-dot.online{background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,.25)}
+.sync-dot.syncing{background:#f59e0b;animation:pulse .8s infinite}
+.sync-dot.offline{background:#ef4444}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sync-label{font-size:11px;color:var(--text3)}
+
+/* HEADER */
+.header{
+  background:var(--white);border-bottom:1px solid var(--border);
+  padding:0 16px;height:52px;display:flex;align-items:center;gap:10px;
+  position:sticky;top:0;z-index:200
+}
+.logo{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;letter-spacing:-.5px;flex-shrink:0}
+.logo em{color:var(--pre);font-style:normal}
+.search-box{flex:1;position:relative;min-width:0}
+.search-box svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
+.search-box input{
+  width:100%;border:1.5px solid var(--border2);border-radius:10px;
+  padding:7px 10px 7px 32px;font-family:inherit;font-size:13px;
+  color:var(--text);background:var(--bg);outline:none;transition:border-color .2s,box-shadow .2s
+}
+.search-box input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.12);background:var(--white)}
+.search-box input::placeholder{color:var(--text3)}
+.header-tabs{display:flex;gap:3px;flex-shrink:0}
+.htab{
+  padding:5px 10px;border-radius:7px;border:1.5px solid var(--border2);
+  background:transparent;color:var(--text2);cursor:pointer;font-family:inherit;font-size:11px;font-weight:500;
+  transition:all .15s;white-space:nowrap
+}
+@media(max-width:600px){.htab-label{display:none}}
+.htab:hover{background:var(--bg)}
+.htab.ap{background:var(--pre-light);border-color:var(--pre);color:var(--pre)}
+.htab.aa{background:var(--after-light);border-color:var(--after);color:var(--after)}
+.htab.al{background:#f0f0ff;border-color:#818cf8;color:#4f46e5}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--pre);color:#fff}.btn-primary:hover{background:#15803d}
+.btn-outline{background:transparent;border:1.5px solid var(--border2);color:var(--text2)}.btn-outline:hover{background:var(--bg)}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#2563eb}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#dc2626}
+.btn-sm{padding:5px 9px;font-size:11px}
+
+/* LAYOUT */
+.body{display:flex;height:calc(100vh - 52px)}
+.sidebar{width:200px;background:var(--white);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0}
+@media(max-width:700px){.sidebar{display:none}}
+.main-panel{flex:1;overflow-y:auto;padding:14px 16px}
+
+/* SIDEBAR */
+.sidebar-sec{padding:10px 12px 4px;font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase}
+.sidebar-item{display:flex;align-items:center;gap:7px;padding:7px 10px;cursor:pointer;border-radius:7px;margin:1px 6px;transition:background .12s;font-size:12px;color:var(--text2)}
+.sidebar-item:hover{background:var(--bg)}
+.sidebar-item.active{background:var(--pre-dim);color:var(--pre);font-weight:500}
+.sidebar-item.active.after-mode{background:var(--after-dim);color:var(--after)}
+.cat-badge{margin-left:auto;font-size:10px;padding:1px 5px;border-radius:8px;background:var(--bg);color:var(--text3)}
+.sidebar-item.active .cat-badge{background:var(--pre-dim);color:var(--pre)}
+.sidebar-item.active.after-mode .cat-badge{background:var(--after-dim);color:var(--after)}
+.sidebar-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.pre-dot{background:var(--pre)}.after-dot{background:var(--after)}
+
+/* ITEMS */
+.items-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.items-title{font-size:14px;font-weight:700;color:var(--text)}
+.items-count{font-size:11px;color:var(--text3);margin-left:6px}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3)}
+
+.item-card{background:var(--white);border-radius:12px;border:1.5px solid var(--border);margin-bottom:8px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.item-card:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+.item-q{display:flex;align-items:flex-start;gap:9px;padding:11px 13px;cursor:pointer;transition:background .1s}
+.item-q:hover{background:var(--bg)}
+.q-tag{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;flex-shrink:0;margin-top:1px}
+.pre-tag{background:var(--pre-dim);color:var(--pre)}.after-tag{background:var(--after-dim);color:var(--after)}
+.q-text{flex:1;font-size:13px;font-weight:500;color:var(--text);line-height:1.5}
+.q-text mark{background:#fef9c3;color:#92400e;border-radius:2px;padding:0 1px}
+.q-chevron{color:var(--text3);font-size:10px;margin-top:3px;transition:transform .2s;flex-shrink:0}
+.item-card.open .q-chevron{transform:rotate(180deg)}
+.item-body{display:none;border-top:1px solid var(--border);padding:13px}
+.item-card.open .item-body{display:block}
+.answer-text{background:var(--bg);border-radius:8px;padding:11px 13px;line-height:1.9;color:var(--text2);font-size:13px;border-left:3px solid var(--border2);white-space:pre-wrap;word-break:break-word}
+.answer-text mark{background:#fef9c3;color:#92400e;border-radius:2px;padding:0 1px}
+.pre-card .answer-text{border-left-color:var(--pre-border)}.after-card .answer-text{border-left-color:var(--after-border)}
+
+.media-grid{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.media-thumb{position:relative;width:76px;height:76px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);cursor:pointer;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.media-thumb img{width:100%;height:100%;object-fit:cover}
+.media-thumb video{width:100%;height:100%;object-fit:cover}
+.play-icon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:26px;height:26px;background:rgba(0,0,0,.55);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;pointer-events:none}
+.copy-media-btn{position:absolute;inset:0;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;transition:background .15s;color:#fff;font-size:11px;font-weight:500;opacity:0;flex-direction:column;gap:3px}
+.media-thumb:hover .copy-media-btn{opacity:1;background:rgba(0,0,0,.5)}
+
+.item-actions{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap}
+.copy-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:7px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;transition:all .15s}
+.pre-card .copy-btn{background:var(--pre-dim);color:var(--pre)}.after-card .copy-btn{background:var(--after-dim);color:var(--after)}
+.copy-btn:hover{filter:brightness(.92)}.copy-btn.copied{background:rgba(167,139,250,.15)!important;color:#7c3aed!important}
+.edit-btn{background:var(--blue-light);color:var(--blue);border:none}.edit-btn:hover{background:#dbeafe}
+.del-btn{background:var(--red-light);color:var(--red);border:none}.del-btn:hover{background:#fee2e2}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:#1a1d2e;color:#fff;padding:10px 16px;border-radius:10px;font-size:12px;font-weight:500;transform:translateY(80px);opacity:0;transition:all .25s cubic-bezier(.34,1.56,.64,1);z-index:9999;pointer-events:none;display:flex;align-items:center;gap:7px;max-width:280px}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+.overlay.show{display:flex}
+.modal{background:var(--white);border-radius:16px;box-shadow:var(--shadow2);width:100%;max-width:600px;max-height:92vh;overflow-y:auto}
+.modal-head{padding:18px 20px 0;display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:15px;font-weight:700;color:var(--text)}
+.modal-close{width:30px;height:30px;border-radius:7px;border:none;background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:15px;transition:background .15s}
+.modal-close:hover{background:var(--border)}
+.modal-body{padding:18px 20px}
+.modal-footer{padding:0 20px 18px;display:flex;gap:8px;justify-content:flex-end}
+
+/* FORM */
+.form-row{margin-bottom:14px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px}
+.form-input,.form-select,.form-textarea{width:100%;border:1.5px solid var(--border2);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:13px;color:var(--text);background:var(--white);outline:none;transition:border-color .2s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.form-textarea{resize:vertical;min-height:110px;line-height:1.7}
+.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239399b2' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+.form-row-inline{display:flex;gap:10px}
+.form-row-inline .form-row{flex:1;margin-bottom:0}
+
+/* MEDIA UPLOAD */
+.media-upload-area{border:2px dashed var(--border2);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;color:var(--text3);font-size:12px}
+.media-upload-area:hover{border-color:var(--blue);background:var(--blue-light);color:var(--blue)}
+.media-preview-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.media-prev-item{position:relative;width:68px;height:68px;border-radius:7px;overflow:hidden;border:1.5px solid var(--border);background:var(--bg)}
+.media-prev-item img,.media-prev-item video{width:100%;height:100%;object-fit:cover}
+.rm-media{position:absolute;top:2px;right:2px;width:17px;height:17px;border-radius:50%;background:rgba(239,68,68,.9);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px}
+
+/* MANAGE */
+.section-card{background:var(--white);border-radius:12px;border:1.5px solid var(--border);margin-bottom:10px;overflow:hidden}
+.section-card-head{display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.section-actions{margin-left:auto;display:flex;gap:5px}
+.section-item-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;transition:background .1s}
+.section-item-row:hover{background:var(--bg)}
+.section-item-q{flex:1;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.section-item-actions{display:flex;gap:3px;flex-shrink:0}
+
+/* LIGHTBOX */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:800;display:none;align-items:center;justify-content:center;padding:16px}
+.lightbox.show{display:flex}
+.lightbox img,.lightbox video{max-width:100%;max-height:88vh;border-radius:8px}
+.lightbox-close{position:fixed;top:14px;right:14px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;border:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.lightbox-close:hover{background:rgba(255,255,255,.25)}
+
+/* PAGE */
+.page{display:none}.page.active{display:block}
+.cat-label-bar{display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:20px;font-size:11px;font-weight:600;margin-bottom:12px}
+.cat-label-pre{background:var(--pre-light);color:var(--pre);border:1px solid var(--pre-border)}
+.cat-label-after{background:var(--after-light);color:var(--after);border:1px solid var(--after-border)}
+.search-results-note{font-size:12px;color:var(--text3);margin-bottom:11px}
+
+/* MOBILE BOTTOM NAV */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);padding:6px 0 env(safe-area-inset-bottom);justify-content:space-around;z-index:150}
+@media(max-width:700px){.mobile-nav{display:flex}.main-panel{padding-bottom:70px}}
+.mobile-nav-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 16px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:10px;color:var(--text3);transition:color .15s}
+.mobile-nav-btn.active{color:var(--pre)}
+.mobile-nav-btn svg{font-size:20px}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-logo">话术<em>助手</em></div>
+  <div class="loading-bar"><div class="loading-bar-inner"></div></div>
+  <div class="loading-txt" id="loadingTxt">正在连接云端数据库…</div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">话术<em>助手</em></div>
+  <div class="search-box">
+    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input id="searchInput" type="text" placeholder="搜索关键词…" autocomplete="off">
+  </div>
+  <div class="header-tabs">
+    <button class="htab al" onclick="setFilter('all',this)">全部</button>
+    <button class="htab" onclick="setFilter('pre',this)">🟢 <span class="htab-label">售前</span></button>
+    <button class="htab" onclick="setFilter('after',this)">🟠 <span class="htab-label">售后</span></button>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+    <div class="sync-dot offline" id="syncDot"></div>
+    <span class="sync-label" id="syncLabel">连接中</span>
+  </div>
+  <button class="btn btn-outline btn-sm" id="manageBtn" onclick="toggleManage()">⚙️ 维护</button>
+</div>
+
+<div class="body">
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar"></div>
+
+  <!-- MAIN -->
+  <div class="main-panel">
+    <div class="page active" id="page-search">
+      <div class="items-header">
+        <div><span class="items-title" id="pageTitle">全部话术</span><span class="items-count" id="itemsCount"></span></div>
+        <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ 新增</button>
+      </div>
+      <div id="searchNote" class="search-results-note" style="display:none"></div>
+      <div id="itemsList"></div>
+    </div>
+
+    <div class="page" id="page-manage">
+      <div class="items-header">
+        <div class="items-title">话术维护</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="openCatModal()">＋ 新增分组</button>
+          <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ 新增话术</button>
+        </div>
+      </div>
+      <div id="manageList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE NAV -->
+<div class="mobile-nav">
+  <button class="mobile-nav-btn active" id="mnav-search" onclick="mobileNav('search')">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    搜话术
+  </button>
+  <button class="mobile-nav-btn" id="mnav-pre" onclick="setFilter('pre',null);mobileNav('search')">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+    售前
+  </button>
+  <button class="mobile-nav-btn" id="mnav-after" onclick="setFilter('after',null);mobileNav('search')">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.72A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 8.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+    售后
+  </button>
+  <button class="mobile-nav-btn" id="mnav-manage" onclick="mobileNav('manage')">
+    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    维护
+  </button>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toastMsg">已复制！</span>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('show')">
+  <button class="lightbox-close">✕</button>
+  <div id="lightboxContent"></div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="editModalTitle">新增话术</div>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row-inline">
+        <div class="form-row">
+          <label class="form-label">类别</label>
+          <select class="form-select" id="editType" onchange="updateCatOptions(this.value)">
+            <option value="pre">🟢 售前</option>
+            <option value="after">🟠 售后</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="form-label">分组</label>
+          <select class="form-select" id="editCat"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">客户问题</label>
+        <input class="form-input" id="editQ" type="text" placeholder="客户可能会问的问题…">
+      </div>
+      <div class="form-row">
+        <label class="form-label">回复话术</label>
+        <textarea class="form-textarea" id="editA" placeholder="温暖自然的回复，结尾加～会更亲切哦…"></textarea>
+      </div>
+      <div class="form-row">
+        <label class="form-label">附图/附视频</label>
+        <div class="media-upload-area" onclick="document.getElementById('fileInput').click()">
+          <div style="font-size:22px;margin-bottom:5px">🖼️</div>
+          <div>点击上传图片或视频</div>
+          <div style="margin-top:3px;font-size:11px">JPG / PNG / GIF / MP4</div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*,video/*" multiple style="display:none" onchange="handleFileUpload(event)">
+        <div class="media-preview-list" id="mediaPreviewList"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeEditModal()">取消</button>
+      <button class="btn btn-primary" id="saveBtn" onclick="saveItem()">保存话术</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD CAT MODAL -->
+<div class="overlay" id="catOverlay">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-head">
+      <div class="modal-title" id="catModalTitle">新增分组</div>
+      <button class="modal-close" onclick="closeCatModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">类别</label>
+        <select class="form-select" id="catType">
+          <option value="pre">🟢 售前</option>
+          <option value="after">🟠 售后</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">分组名称</label>
+        <input class="form-input" id="catName" type="text" placeholder="例如：产品材质与认证">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCatModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveCat()">保存分组</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-head">
+      <div class="modal-title">确认删除</div>
+      <button class="modal-close" onclick="document.getElementById('confirmOverlay').classList.remove('show')">✕</button>
+    </div>
+    <div class="modal-body"><p style="color:var(--text2);line-height:1.7" id="confirmMsg"></p></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="document.getElementById('confirmOverlay').classList.remove('show')">取消</button>
+      <button class="btn btn-danger" id="confirmOk">删除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// SUPABASE CONFIG
+// ══════════════════════════════════════════════
+const SUPABASE_URL = 'https://aikilkcgozfrpnznrebx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_AHhsfbBlsgR6elaYgluXrA_3n-_0Pio';
+
+// ══════════════════════════════════════════════
+// DEFAULT DATA (首次使用时初始化)
+// ══════════════════════════════════════════════
+const DEFAULT_DATA = {
+  pre: [
+    { cat:"产品材质与认证", items:[
+      { q:"头盔材质是什么？", a:"亲～我们头盔外壳用的是高密度ABS材质，内部是进口EPS缓冲层，这个组合在安全性上是最优的！轻便又扛撞，放心骑行没问题的☺", media:[] },
+      { q:"头盔有ECE、DOT认证吗？", a:"亲亲，我们通过的是国内3C A类认证哦～3C标志可以在内衬里面找到。我们特意把A标做成可粘贴的，不喜欢标识留在头盔上的朋友可以轻松撕掉，很贴心吧？", media:[] },
+      { q:"头盔的3C标识和生产日期在哪里？", a:"亲，把内衬取下来就能看到3C标识和生产日期啦～就印在内衬里面，拿到头盔后可以看一下哦，有疑问随时找我✌", media:[] },
+    ]},
+    { cat:"选购与尺码", items:[
+      { q:"头盔尺码怎么选？", a:"亲亲，先用软尺量一下头围（耳朵上方绕一圈），对照尺码表选。试戴后有包裹感、太阳穴不会疼、左右晃头不乱动就合适啦～卡在两个码之间建议选大一码，会更舒服的😊", media:[] },
+      { q:"头盔是小盔体设计吗？会不会显头大？", a:"亲，我们用的是小盔体设计，视觉上非常清爽不显大头哦！不同尺码盔体一样大，只是内衬厚度有差异，尺码越大内衬相对越薄，保证各码都合头型～", media:[] },
+      { q:"有适合儿童的头盔吗？", a:"（请补充儿童款型号及尺码信息）", media:[] },
+    ]},
+    { cat:"配件与适配", items:[
+      { q:"泡泡镜防晒吗？有防紫外线认证吗？", a:"亲，防晒没问题的～泡泡镜具备防紫外线功能，不同颜色适合不同天气，浅色透明适合阴天，深色电镀款阳光天更合适。（具体UV等级请补充）", media:[] },
+      { q:"弯帽檐和平帽檐有什么区别？", a:"简单说就是风格不一样啦～弯帽檐遮阳好、有运动感；平帽檐复古简洁、休闲骑很搭。看您喜欢哪种风格，都好看的😊", media:[] },
+      { q:"泡泡镜/帽檐能用其他品牌头盔吗？", a:"亲亲，这个没办法保证哦～每家头盔弧度和底扣不一样，用在其他品牌上可能不贴合。如果买了用不上，7天内可以退货的，放心～", media:[] },
+      { q:"可以安装蓝牙耳机吗？", a:"（请补充蓝牙耳机安装兼容说明）", media:[] },
+      { q:"可以安装运动相机吗？", a:"（请补充运动相机安装教程）", media:[] },
+    ]},
+    { cat:"特定款型问题", items:[
+      { q:"903头盔有风道吗？风噪大不大？", a:"亲，903乐高全盔嘴巴前面没有垫片，本来就能通风，所以不需要专门设计风道。附赠下巴托可拆装，冬天防风夏天通风，两全其美～风噪90km/h下正常适中，不影响骑行，比较主观收到试试哦😊", media:[] },
+      { q:"208头盔围脖外层皮质可以拆卸吗？", a:"（请补充208围脖拆卸说明）", media:[] },
+      { q:"半盔护耳可以拆卸吗？", a:"（请补充半盔护耳拆卸说明）", media:[] },
+    ]},
+    { cat:"价格与购买", items:[
+      { q:"价格有优惠吗？", a:"亲，我们会不定期参加平台活动，活动期间优惠力度更大！建议收藏店铺，活动时第一时间通知您～或问问我现在有没有优惠券可领🎁", media:[] },
+      { q:"今天能发货吗？", a:"（请补充发货时效说明）", media:[] },
+      { q:"用什么快递？运输时效多久？", a:"（请补充快递公司及时效说明）", media:[] },
+      { q:"可以开发票吗？", a:"（请补充开票说明及流程）", media:[] },
+    ]},
+    { cat:"赠品说明", items:[
+      { q:"有哪些赠品？", a:"（请补充各款头盔对应赠品清单）", media:[] },
+      { q:"可以更换赠品吗？", a:"（请补充换赠品政策说明）", media:[] },
+    ]},
+  ],
+  after: [
+    { cat:"退换货政策", items:[
+      { q:"不合适可以退货吗？", a:"亲，放心哦～支持7天无理由退货的。超过7天了也别着急，只要商品没影响二次销售，这边可以帮您特殊申请，收到货有开箱视频确认，按提示操作就好啦🙂", media:[] },
+      { q:"如何申请换货？", a:"亲，换货很简单～进订单页面找到对应订单，点【申请售后】，选您想换的商品，理由选【其他】，这边第一时间帮您审核。通过后页面会显示退货地址，有问题随时找我哦😊", media:[] },
+      { q:"退货没有盒子了怎么办？", a:"亲亲，没有原包装盒也没关系哦～麻烦请快递小哥帮找个纸箱，里面用泡泡袋包好，避免运输途中受损就行啦，辛苦啦～", media:[] },
+    ]},
+    { cat:"价格与图片问题", items:[
+      { q:"降价/涨价了，可以保价吗？", a:"亲亲，我们有15天保价的放心～平台活动产生的差价，在主页搜索【保价中心】提交申请哦。每时期平台活动不同，加上优惠券叠加，实付金额可能有差异，希望您理解～", media:[] },
+      { q:"网图与实际颜色不匹配？", a:"亲，商品图是实物拍摄，但相机和屏幕难免有一点色差，真心希望您理解呢～收到不喜欢完全可以退货退款，若款式真的和下单不符，请告诉我，我来帮您核实处理😊", media:[] },
+    ]},
+    { cat:"质量问题处理", items:[
+      { q:"EPS层有压痕怎么办？", a:"亲亲真的很抱歉！这是发货检查内衬插片时不小心留下的，EPS缓冲层不是硬质材料，不影响头盔安全性能。如果您还是介意，我帮您安排换货，非常抱歉🙏", media:[] },
+      { q:"208护耳两边不对称怎么办？", a:"亲，先不用着急～辛苦把内衬取下来，顺一顺两边护耳，重新安装看看能不能调整过来。还是有问题就直接帮您换一个！快递费我们承担，耽误您使用了很抱歉～", media:[] },
+      { q:"泡泡镜有缺口是质量问题吗？", a:"亲放心哦，这不是缺陷！泡泡镜一体注塑成型，为了边缘不划手会打磨处理，打磨后就有这个效果，所有泡泡镜都这样，不影响使用和安全～", media:[] },
+      { q:"头盔上有白点、黑点？", a:"亲，完全不是质量问题！全系头盔用的是珠光漆面工艺，本身含闪粉效果，分布不是完全均匀的，有几颗集中或明显是正常的，阳光下还挺好看哦～放心使用🌟", media:[] },
+    ]},
+    { cat:"佩戴使用问题", items:[
+      { q:"头盔戴着有点紧怎么办？", a:"亲，新头盔刚开始都会稍紧，这是正常的哦～太阳穴不是很疼就放心戴，内衬会慢慢贴合头型，一般1-2周后会明显宽松舒适很多，就像新鞋要磨合一样😊", media:[] },
+      { q:"如何判断头盔大小是否合适？", a:"亲，合适的感觉：戴上去有包裹感，但太阳穴不会明显疼痛，左右摇摇头不会来回晃动就对了～建议试戴五分钟感受一下，有问题随时告诉我！", media:[] },
+      { q:"双D扣旁边红色带子是什么？", a:"亲，那个是快拆带哦！拆头盔时，取下佩带扣子之后拉一下红带，整个佩带就能快速滑出来，省了不少步骤，特别方便～这个小设计很多人不知道的！", media:[] },
+    ]},
+    { cat:"配件使用问题", items:[
+      { q:"泡泡镜安不上去怎么办？", a:"亲，别着急～泡泡镜安装时稍紧是特意设计的，这样骑行时不会晃动脱落更安全！建议反复按压揉按，或休息一会再试。最后一颗扣不上，先取下泡泡镜，用那颗去扣头盔中间位置排查。实在不行可以寄回来，我们装好再发，运费我们出哦！", media:[] },
+      { q:"903镜片拧不动怎么办？", a:"亲，用整个手掌贴在座帽上增加接触面，就能轻松拧动啦！翻上去的镜片往下滑，把两侧顶座螺丝稍微拧紧一点就解决了，很简单的～", media:[] },
+      { q:"903镜片如何贴防雾贴膜？", a:"亲，贴膜步骤：①擦干净镜片，揭掉原厂保护膜；②防雾膜贴合面对着镜片内侧，对好位置贴上；③从中间往边缘慢慢按压，把气泡推出去；④检查没有气泡和起翘就完成啦！", media:[] },
+    ]},
+    { cat:"清洁与保养", items:[
+      { q:"内衬如何清洗？", a:"亲，把内衬取下来，用温水泡十几分钟，加洗衣液轻轻揉搓，清洗2-3遍就干净了。洗好放通风处阴干哦，不要暴晒也不要高温烘，内衬不会变形，用起来更舒服～", media:[] },
+      { q:"手套如何清洗？", a:"（请补充手套清洗方法）", media:[] },
+    ]},
+    { cat:"配件说明", items:[
+      { q:"头盔赠送的反光条贴在哪里？", a:"亲，反光条这样贴效果最好：正后方必贴一条（最重要，让后车看到您）；左右两侧各一条竖向；前方两侧和顶部可选。骑行安全第一，贴上夜骑放心很多～", media:[] },
+      { q:"帽檐里的黑色垫片要取下吗？", a:"亲，不用取下哦～那是静音棉，有它骑行时风噪更小，留着用会更舒适！", media:[] },
+      { q:"泡泡镜两边的黑色垫片有什么用？", a:"亲，那是保护垫，防止支架和头盔直接接触刮花头盔表面，请保留使用哦～别看小，很有用的！", media:[] },
+    ]},
+  ]
+};
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let appData = { pre:[], after:[] };
+let currentFilter = 'all';
+let currentCat = null;
+let editingId = null;
+let editMediaStore = [];
+let inManage = false;
+let renamingCat = null;
+let supabase = null;
+
+function uid(){ return 'id_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7) }
+
+// ══════════════════════════════════════════════
+// SUPABASE INIT
+// ══════════════════════════════════════════════
+async function initSupabase(){
+  // Load Supabase JS SDK
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Ensure table exists by trying to read — if fails, we seed
+  setLoading('正在读取话术数据…');
+  const { data, error } = await supabase.from('huashu_data').select('*').eq('id', 1).single();
+
+  if(error || !data){
+    // First time: create row with default data
+    setLoading('首次使用，正在初始化数据…');
+    const defaultWithIds = addIds(JSON.parse(JSON.stringify(DEFAULT_DATA)));
+    const { error: insertErr } = await supabase.from('huashu_data').upsert({
+      id: 1,
+      data: defaultWithIds,
+      updated_at: new Date().toISOString()
+    });
+    if(insertErr){
+      // Table might not exist yet — show setup instructions
+      showSetupError(insertErr.message);
+      return false;
+    }
+    appData = defaultWithIds;
+  } else {
+    appData = data.data;
+  }
+
+  // Subscribe to realtime changes
+  supabase.channel('huashu').on('postgres_changes',
+    { event: 'UPDATE', schema: 'public', table: 'huashu_data' },
+    payload => {
+      if(payload.new && payload.new.data){
+        appData = payload.new.data;
+        render();
+        renderManage();
+        setSyncStatus('online', '已同步');
+        setTimeout(()=>setSyncStatus('online','在线'), 2000);
+      }
+    }
+  ).subscribe();
+
+  return true;
+}
+
+function addIds(data){
+  for(const t of ['pre','after']){
+    for(const grp of data[t]){
+      if(!grp.id) grp.id = uid();
+      for(const item of grp.items){
+        if(!item.id) item.id = uid();
+        if(!item.media) item.media = [];
+      }
+    }
+  }
+  return data;
+}
+
+async function pushData(){
+  setSyncStatus('syncing','同步中…');
+  const { error } = await supabase.from('huashu_data').update({
+    data: appData,
+    updated_at: new Date().toISOString()
+  }).eq('id', 1);
+  if(error){
+    setSyncStatus('offline','同步失败');
+    showToast('同步失败，请检查网络', true);
+  } else {
+    setSyncStatus('online','已保存');
+    setTimeout(()=>setSyncStatus('online','在线'),2000);
+  }
+}
+
+function setSyncStatus(state, label){
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  dot.className = 'sync-dot ' + state;
+  lbl.textContent = label;
+}
+
+function setLoading(txt){
+  document.getElementById('loadingTxt').textContent = txt;
+}
+
+function showSetupError(msg){
+  document.getElementById('loadingScreen').innerHTML = `
+    <div style="max-width:500px;padding:24px;text-align:left">
+      <div style="font-size:18px;font-weight:700;color:#1a1d2e;margin-bottom:12px">⚠️ 需要完成数据库设置</div>
+      <p style="color:#4a5068;line-height:1.7;margin-bottom:16px">请在 Supabase 后台执行以下 SQL 语句创建数据表，然后刷新页面：</p>
+      <div style="background:#1a1d2e;color:#e8eaf0;padding:16px;border-radius:10px;font-family:monospace;font-size:12px;line-height:1.8;margin-bottom:16px;overflow-x:auto">
+        create table huashu_data (<br>
+        &nbsp;&nbsp;id integer primary key,<br>
+        &nbsp;&nbsp;data jsonb not null,<br>
+        &nbsp;&nbsp;updated_at timestamptz default now()<br>
+        );<br><br>
+        alter table huashu_data enable row level security;<br><br>
+        create policy "allow_all" on huashu_data<br>
+        &nbsp;&nbsp;for all using (true) with check (true);<br><br>
+        alter publication supabase_realtime add table huashu_data;
+      </div>
+      <p style="color:#9399b2;font-size:12px">步骤：Supabase → SQL Editor → 粘贴上面代码 → Run → 刷新此页面</p>
+      <p style="color:#ef4444;font-size:11px;margin-top:8px">错误信息：${msg}</p>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+function renderSidebar(){
+  const sb = document.getElementById('sidebar');
+  let html = '';
+  const types = currentFilter==='all'?['pre','after']:[currentFilter];
+  for(const t of types){
+    const label = t==='pre'?'售前咨询':'售后处理';
+    html += `<div class="sidebar-sec">${label}</div>`;
+    const total = appData[t].reduce((s,g)=>s+g.items.length, 0);
+    const allActive = !currentCat;
+    html += `<div class="sidebar-item ${allActive&&(currentFilter===t||currentFilter==='all')?'active '+(t==='after'?'after-mode':''):''}" onclick="setCat(null,'${t}')">
+      <span class="sidebar-dot ${t}-dot"></span>全部${t==='pre'?'售前':'售后'}
+      <span class="cat-badge">${total}</span></div>`;
+    for(const grp of appData[t]){
+      const active = currentCat===grp.cat+'__'+t;
+      html += `<div class="sidebar-item ${active?'active '+(t==='after'?'after-mode':''):''}" onclick="setCat('${escQ(grp.cat)}','${t}')">
+        <span class="sidebar-dot ${t}-dot"></span>${grp.cat}
+        <span class="cat-badge">${grp.items.length}</span></div>`;
+    }
+  }
+  sb.innerHTML = html;
+}
+
+function renderItems(){
+  const term = document.getElementById('searchInput').value.trim();
+  const list = document.getElementById('itemsList');
+  const note = document.getElementById('searchNote');
+  let items = [];
+
+  if(term){
+    items = getAllItems(currentFilter).filter(i=>matches(i,term));
+    note.style.display='block';
+    note.textContent = `搜索"${term}"，找到 ${items.length} 条话术`;
+  } else if(!currentCat){
+    items = getAllItems(currentFilter);
+    note.style.display='none';
+  } else {
+    const [catName,type] = currentCat.split('__');
+    const grp = appData[type]?.find(g=>g.cat===catName);
+    items = grp ? grp.items.map(i=>({...i,type,catName:grp.cat})) : [];
+    note.style.display='none';
+  }
+
+  document.getElementById('itemsCount').textContent = `（${items.length} 条）`;
+
+  if(!items.length){
+    list.innerHTML='<div class="empty-state"><div style="font-size:32px;margin-bottom:10px">🔍</div><div>暂无相关话术</div></div>';
+    return;
+  }
+
+  let html = '';
+  if(term || currentCat){
+    for(const item of items) html += renderCard(item, term);
+  } else {
+    const groups = {};
+    for(const item of items){
+      const key = item.type+'__'+item.catName;
+      if(!groups[key]) groups[key]={type:item.type,catName:item.catName,items:[]};
+      groups[key].items.push(item);
+    }
+    for(const [,g] of Object.entries(groups)){
+      html += `<div class="cat-label-bar cat-label-${g.type}"><span class="sidebar-dot ${g.type}-dot"></span>${g.catName}</div>`;
+      for(const item of g.items) html += renderCard(item,'');
+    }
+  }
+  list.innerHTML = html;
+}
+
+function renderCard(item, term){
+  const typeClass = item.type+'--card';
+  const tagClass = item.type+'-tag';
+  const tagLabel = item.type==='pre'?'售前':'售后';
+  let mediaHtml = '';
+  if(item.media?.length){
+    mediaHtml = '<div class="media-grid">';
+    for(const m of item.media){
+      const src = m.dataUrl || m.url || '';
+      if(m.type==='image'){
+        mediaHtml += `<div class="media-thumb" onclick="openLightbox('img','${src}')">
+          <img src="${src}" loading="lazy">
+          <div class="copy-media-btn" onclick="event.stopPropagation();downloadMedia('${src}','image','${(m.name||'image.jpg').replace(/'/g,'')}')" >
+            <span>💾</span><span>保存图片</span>
+          </div></div>`;
+      } else {
+        mediaHtml += `<div class="media-thumb" onclick="openLightbox('video','${src}')">
+          <video src="${src}" muted preload="metadata"></video>
+          <div class="play-icon">▶</div>
+          <div class="copy-media-btn" onclick="event.stopPropagation();downloadMedia('${src}','video','${(m.name||'video.mp4').replace(/'/g,'')}')" >
+            <span>💾</span><span>保存视频</span>
+          </div></div>`;
+      }
+    }
+    mediaHtml += '</div>';
+  }
+
+  const qDisplay = term ? highlight(item.q, term) : item.q;
+  const aDisplay = term ? highlight(item.a, term) : item.a;
+  const aSafe = item.a.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
+
+  return `<div class="item-card pre-card ${typeClass}" id="card-${item.id}" style="--card-accent:${item.type==='pre'?'var(--pre)':'var(--after)'}">
+    <div class="item-q" onclick="toggleCard('${item.id}')">
+      <span class="q-tag ${tagClass}">${tagLabel}</span>
+      <span class="q-text">${qDisplay}</span>
+      <span class="q-chevron">▾</span>
+    </div>
+    <div class="item-body">
+      <div class="answer-text ${item.type==='after'?'after-card':''}">${aDisplay}</div>
+      ${mediaHtml}
+      <div class="item-actions">
+        <button class="copy-btn ${item.type==='pre'?'pre-card':''} ${item.type==='after'?'after-card':''}" onclick="copyText('${aSafe}',this)">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>复制话术
+        </button>
+        <button class="copy-btn edit-btn" onclick="openEditModal('${item.id}','${item.type}')">✏️ 编辑</button>
+        <button class="copy-btn del-btn" onclick="confirmDelete('${item.id}')">🗑️ 删除</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderManage(){
+  if(!document.getElementById('page-manage').classList.contains('active')) return;
+  const container = document.getElementById('manageList');
+  let html = '';
+  for(const t of ['pre','after']){
+    const tLabel = t==='pre'?'🟢 售前':'🟠 售后';
+    for(const grp of appData[t]){
+      html += `<div class="section-card">
+        <div class="section-card-head">
+          <span class="q-tag ${t}-tag">${tLabel}</span>
+          <strong style="font-size:13px">${grp.cat}</strong>
+          <span style="color:var(--text3);font-size:11px;margin-left:4px">${grp.items.length}条</span>
+          <div class="section-actions">
+            <button class="btn btn-outline btn-sm" onclick="openRenameCat('${escQ(grp.cat)}','${t}')">改名</button>
+            <button class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:none" onclick="confirmDeleteCat('${escQ(grp.cat)}','${t}')">删分组</button>
+          </div>
+        </div>
+        <div style="padding:6px 8px">`;
+      for(const item of grp.items){
+        html += `<div class="section-item-row">
+          <span class="section-item-q">${item.q}</span>
+          <div class="section-item-actions">
+            <button class="btn btn-outline btn-sm" onclick="openEditModal('${item.id}','${t}')">编辑</button>
+            <button class="btn btn-sm" style="background:var(--red-light);color:var(--red);border:none" onclick="confirmDelete('${item.id}')">删</button>
+          </div>
+        </div>`;
+      }
+      html += `<div style="padding:4px 6px 8px">
+        <button class="btn btn-outline btn-sm" onclick="openAddModalInCat('${escQ(grp.cat)}','${t}')">＋ 在此添加话术</button>
+      </div></div></div>`;
+    }
+  }
+  container.innerHTML = html;
+}
+
+function render(){ renderSidebar(); renderItems(); }
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+function escQ(s){ return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'") }
+function getAllItems(filter){
+  const out=[];
+  for(const t of filter==='all'?['pre','after']:[filter])
+    for(const g of appData[t]) for(const i of g.items) out.push({...i,type:t,catName:g.cat});
+  return out;
+}
+function highlight(text,term){
+  const re=new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi');
+  return text.replace(re,'<mark>$1</mark>');
+}
+function matches(item,term){
+  const t=term.toLowerCase();
+  return item.q.toLowerCase().includes(t)||item.a.toLowerCase().includes(t)||(item.catName||'').toLowerCase().includes(t);
+}
+
+// ══════════════════════════════════════════════
+// INTERACTIONS
+// ══════════════════════════════════════════════
+function toggleCard(id){
+  document.getElementById('card-'+id)?.classList.toggle('open');
+}
+function setFilter(f, el){
+  currentFilter=f; currentCat=null;
+  document.querySelectorAll('.htab').forEach(t=>t.className='htab');
+  if(el){ el.className = f==='pre'?'htab ap':f==='after'?'htab aa':'htab al'; }
+  else { document.querySelectorAll('.htab')[f==='pre'?1:f==='after'?2:0].className = f==='pre'?'htab ap':f==='after'?'htab aa':'htab al'; }
+  document.getElementById('pageTitle').textContent = f==='pre'?'售前话术':f==='after'?'售后话术':'全部话术';
+  render();
+}
+function setCat(catName, type){
+  currentCat = catName ? catName+'__'+type : null;
+  currentFilter = type;
+  document.querySelectorAll('.htab').forEach(t=>t.className='htab');
+  document.querySelectorAll('.htab')[type==='pre'?1:2].className = type==='pre'?'htab ap':'htab aa';
+  document.getElementById('pageTitle').textContent = catName || (type==='pre'?'售前话术':'售后话术');
+  showPage('search'); render();
+}
+let inManageMode = false;
+function toggleManage(){
+  inManageMode=!inManageMode;
+  const btn=document.getElementById('manageBtn');
+  if(inManageMode){ showPage('manage'); btn.textContent='← 返回'; btn.classList.add('btn-blue'); btn.classList.remove('btn-outline'); }
+  else { showPage('search'); btn.textContent='⚙️ 维护'; btn.classList.remove('btn-blue'); btn.classList.add('btn-outline'); }
+}
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(name==='manage') renderManage(); else render();
+}
+function mobileNav(name){
+  document.querySelectorAll('.mobile-nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('mnav-'+name)?.classList.add('active');
+  if(name==='manage'){ inManageMode=true; showPage('manage'); }
+  else { inManageMode=false; showPage('search'); }
+}
+
+// ══════════════════════════════════════════════
+// COPY & MEDIA
+// ══════════════════════════════════════════════
+async function copyText(text, btn){
+  text = text.replace(/\\n/g,'\n').replace(/\\'/g,"'").replace(/\\\\/g,'\\');
+  try{
+    await navigator.clipboard.writeText(text);
+    btn.classList.add('copied');
+    const orig = btn.innerHTML;
+    btn.innerHTML='✓ 已复制！';
+    showToast('话术已复制，粘贴发送吧～');
+    setTimeout(()=>{ btn.classList.remove('copied'); btn.innerHTML=orig; },2000);
+  }catch(e){ showToast('请长按文字手动复制'); }
+}
+
+function downloadMedia(src, type, filename){
+  const a = document.createElement('a');
+  a.href = src;
+  a.download = filename || (type==='image'?'image.jpg':'video.mp4');
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('已保存到本地，可直接拖入对话框发送');
+}
+
+function openLightbox(type, src){
+  const lb=document.getElementById('lightbox');
+  document.getElementById('lightboxContent').innerHTML = type==='img'
+    ? `<img src="${src}">`
+    : `<video src="${src}" controls autoplay style="max-width:90vw;max-height:85vh;border-radius:8px"></video>`;
+  lb.classList.add('show');
+}
+document.getElementById('lightbox').addEventListener('click', function(e){
+  if(e.target===this||e.target.classList.contains('lightbox-close')) this.classList.remove('show');
+});
+
+// ══════════════════════════════════════════════
+// ADD / EDIT MODAL
+// ══════════════════════════════════════════════
+function updateCatOptions(type){
+  const sel=document.getElementById('editCat');
+  sel.innerHTML='';
+  for(const grp of appData[type||'pre']){
+    const o=document.createElement('option');
+    o.value=grp.cat; o.textContent=grp.cat;
+    sel.appendChild(o);
+  }
+}
+function openAddModal(){
+  editingId=null; editMediaStore=[];
+  document.getElementById('editModalTitle').textContent='新增话术';
+  document.getElementById('editType').value=currentFilter==='after'?'after':'pre';
+  updateCatOptions(document.getElementById('editType').value);
+  document.getElementById('editQ').value='';
+  document.getElementById('editA').value='';
+  document.getElementById('mediaPreviewList').innerHTML='';
+  document.getElementById('editOverlay').classList.add('show');
+}
+function openAddModalInCat(catName, type){
+  openAddModal();
+  document.getElementById('editType').value=type;
+  updateCatOptions(type);
+  document.getElementById('editCat').value=catName;
+}
+function openEditModal(id, type){
+  editingId=id; editMediaStore=[];
+  let found=null;
+  for(const grp of appData[type]){
+    const item=grp.items.find(i=>i.id===id);
+    if(item){ found={...item,catName:grp.cat,typeKey:type}; break; }
+  }
+  if(!found) return;
+  document.getElementById('editModalTitle').textContent='编辑话术';
+  document.getElementById('editType').value=type;
+  updateCatOptions(type);
+  document.getElementById('editCat').value=found.catName;
+  document.getElementById('editQ').value=found.q;
+  document.getElementById('editA').value=found.a;
+  editMediaStore=(found.media||[]).map(m=>({...m}));
+  renderMediaPreview();
+  document.getElementById('editOverlay').classList.add('show');
+}
+function closeEditModal(){ document.getElementById('editOverlay').classList.remove('show'); }
+
+async function saveItem(){
+  const type=document.getElementById('editType').value;
+  const catName=document.getElementById('editCat').value;
+  const q=document.getElementById('editQ').value.trim();
+  const a=document.getElementById('editA').value.trim();
+  if(!q||!a){ showToast('问题和话术都不能为空哦～'); return; }
+  const btn=document.getElementById('saveBtn');
+  btn.textContent='保存中…'; btn.disabled=true;
+
+  if(editingId){
+    for(const t of ['pre','after']){
+      for(const grp of appData[t]){
+        const idx=grp.items.findIndex(i=>i.id===editingId);
+        if(idx>=0){
+          const item=grp.items.splice(idx,1)[0];
+          item.q=q; item.a=a; item.media=[...editMediaStore];
+          const newGrp=appData[type].find(g=>g.cat===catName);
+          if(newGrp) newGrp.items.push(item);
+          break;
+        }
+      }
+    }
+  } else {
+    const grp=appData[type].find(g=>g.cat===catName);
+    if(!grp){ showToast('请先选择一个分组'); btn.textContent='保存话术'; btn.disabled=false; return; }
+    grp.items.push({ id:uid(), q, a, media:[...editMediaStore] });
+  }
+
+  await pushData();
+  render(); renderManage();
+  closeEditModal();
+  showToast(editingId?'话术已更新，所有同事可见～':'新话术已添加，所有同事可见～');
+  btn.textContent='保存话术'; btn.disabled=false;
+}
+
+// ══════════════════════════════════════════════
+// MEDIA UPLOAD
+// ══════════════════════════════════════════════
+function handleFileUpload(event){
+  const files=Array.from(event.target.files);
+  for(const file of files){
+    const isImage=file.type.startsWith('image/'), isVideo=file.type.startsWith('video/');
+    if(!isImage&&!isVideo) continue;
+    // Warn if file is large
+    if(file.size > 5*1024*1024) { showToast(`"${file.name}"超过5MB，建议压缩后再上传`); continue; }
+    const reader=new FileReader();
+    reader.onload=e=>{ editMediaStore.push({type:isImage?'image':'video',name:file.name,dataUrl:e.target.result}); renderMediaPreview(); };
+    reader.readAsDataURL(file);
+  }
+  event.target.value='';
+}
+function renderMediaPreview(){
+  const list=document.getElementById('mediaPreviewList');
+  list.innerHTML=editMediaStore.map((m,i)=>`<div class="media-prev-item">
+    ${m.type==='image'?`<img src="${m.dataUrl}">`:`<video src="${m.dataUrl}"></video>`}
+    <button class="rm-media" onclick="editMediaStore.splice(${i},1);renderMediaPreview()">✕</button>
+  </div>`).join('');
+}
+
+// ══════════════════════════════════════════════
+// CATEGORIES
+// ══════════════════════════════════════════════
+function openCatModal(){
+  renamingCat=null;
+  document.getElementById('catModalTitle').textContent='新增分组';
+  document.getElementById('catName').value='';
+  document.getElementById('catType').value='pre';
+  document.getElementById('catType').disabled=false;
+  document.getElementById('catOverlay').classList.add('show');
+}
+function openRenameCat(catName,type){
+  renamingCat={catName,type};
+  document.getElementById('catModalTitle').textContent='分组改名';
+  document.getElementById('catName').value=catName;
+  document.getElementById('catType').value=type;
+  document.getElementById('catType').disabled=true;
+  document.getElementById('catOverlay').classList.add('show');
+}
+function closeCatModal(){ document.getElementById('catOverlay').classList.remove('show'); renamingCat=null; document.getElementById('catType').disabled=false; }
+async function saveCat(){
+  const type=document.getElementById('catType').value;
+  const name=document.getElementById('catName').value.trim();
+  if(!name){ showToast('请输入分组名称'); return; }
+  if(renamingCat){
+    const grp=appData[renamingCat.type].find(g=>g.cat===renamingCat.catName);
+    if(grp) grp.cat=name;
+  } else {
+    if(appData[type].find(g=>g.cat===name)){ showToast('该分组名已存在'); return; }
+    appData[type].push({id:uid(),cat:name,items:[]});
+  }
+  await pushData(); render(); renderManage(); closeCatModal();
+  showToast('分组已保存，同事端同步更新～');
+}
+function confirmDeleteCat(catName,type){
+  const grp=appData[type].find(g=>g.cat===catName);
+  document.getElementById('confirmMsg').textContent=`确定删除分组"${catName}"吗？该分组下的 ${grp?.items.length||0} 条话术也会一并删除，不可恢复。`;
+  document.getElementById('confirmOk').onclick=async()=>{
+    appData[type]=appData[type].filter(g=>g.cat!==catName);
+    await pushData(); render(); renderManage();
+    document.getElementById('confirmOverlay').classList.remove('show');
+    showToast('分组已删除');
+  };
+  document.getElementById('confirmOverlay').classList.add('show');
+}
+
+// ══════════════════════════════════════════════
+// DELETE ITEM
+// ══════════════════════════════════════════════
+function confirmDelete(id){
+  document.getElementById('confirmMsg').textContent='确定要删除这条话术吗？删除后无法恢复。';
+  document.getElementById('confirmOk').onclick=async()=>{
+    for(const t of ['pre','after'])
+      for(const grp of appData[t]){
+        const idx=grp.items.findIndex(i=>i.id===id);
+        if(idx>=0){ grp.items.splice(idx,1); break; }
+      }
+    await pushData(); render(); renderManage();
+    document.getElementById('confirmOverlay').classList.remove('show');
+    showToast('已删除');
+  };
+  document.getElementById('confirmOverlay').classList.add('show');
+}
+
+// ══════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg||'完成';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ══════════════════════════════════════════════
+// SEARCH
+// ══════════════════════════════════════════════
+let searchTimer;
+document.getElementById('searchInput').addEventListener('input',()=>{
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(()=>{ currentCat=null; renderItems(); }, 150);
+});
+
+// ══════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════
+(async()=>{
+  try{
+    const ok = await initSupabase();
+    if(ok){
+      setSyncStatus('online','在线');
+      const ls=document.getElementById('loadingScreen');
+      ls.classList.add('hide');
+      setTimeout(()=>ls.style.display='none', 500);
+      render();
+    }
+  } catch(e){
+    setSyncStatus('offline','离线');
+    // Fallback to localStorage
+    try{
+      const s=localStorage.getItem('cs_data_v2');
+      if(s){ const d=JSON.parse(s); if(d.pre&&d.after) appData=addIds(d); }
+      else appData=addIds(JSON.parse(JSON.stringify(DEFAULT_DATA)));
+    } catch(_){ appData=addIds(JSON.parse(JSON.stringify(DEFAULT_DATA))); }
+    const ls=document.getElementById('loadingScreen');
+    ls.classList.add('hide');
+    setTimeout(()=>ls.style.display='none', 400);
+    render();
+    showToast('网络异常，使用本地数据（内容不会同步）');
+  }
+})();
+</script>
+</body>
+</html>
